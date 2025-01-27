@@ -1,8 +1,7 @@
 # Token Types
 from typing_extensions import Optional, Union
 
-
-INTEGER, PLUS, EOF = 'INTEGER', 'PLUS', 'EOF'
+INTEGER, PLUS, MINUS, EOF = 'INTEGER', 'PLUS', 'MINUS', 'EOF'
 
 class Token():
     def __init__(self, type: str, value: Optional[Union[int, str]]) -> None:
@@ -22,10 +21,38 @@ class Pyscal():
         self.source = source # e.g: '3+5'
         self.pos = 0 # index of source
         self.current_token = None # current token instance
+        self.current_char = self.source[self.pos]
 
     # auxiliary function
     def error(self) -> None:
         raise Exception('Error parsing input')
+
+    def advance(self) -> None:
+        """
+        This method advances the 'pos' pointer and set the 'current_char' variable
+        """
+        self.pos += 1
+
+        if self.pos > len(self.source) - 1:
+            self.current_char = None
+        else:
+            self.current_char = self.source[self.pos]
+
+    def skip_white_space(self) -> None:
+        while self.current_char is not None and self.current_char.isspace():
+            self.advance()
+
+    def integer(self) -> int:
+        """
+        This method returns an integer consumed from the input (single or multidigit)
+        """
+        integer = ''
+
+        while self.current_char is not None and self.current_char.isdigit():
+            integer += self.current_char
+            self.advance()
+
+        return int(integer)
 
     def get_next_token(self) -> Optional[Token]:
         """
@@ -33,30 +60,27 @@ class Pyscal():
 
         This method breaks the input (source code) into tokens.
         """
-        source = self.source
+        while self.current_char is not None:
+            if self.current_char.isspace():
+                self.skip_white_space()
+                continue
+            elif self.current_char.isdigit():
+                return Token(INTEGER, self.integer())
+            elif self.current_char == '+':
+                self.advance()
+                return Token(PLUS, '+')
+            elif self.current_char == '-':
+                self.advance()
+                return Token(MINUS, '-')
 
-        # check if the lexer read every character of the source code
-        # if it read then will return EOF (end of file)
-        if self.pos > len(source) - 1:
-            return Token(EOF, None)
+            self.error()
 
-        current_char = source[self.pos]
+        return Token(EOF, None)
 
-        if current_char.isdigit():
-            token = Token(INTEGER, int(current_char))
-            self.pos += 1
-            return token
-
-        elif current_char == '+':
-            token = Token(PLUS, current_char)
-            self.pos += 1
-            return token
-
-        self.error()
-
-    def advance(self, token_type: str) -> None:
+    def consume_token(self, token_type) -> None:
         """
-        This method perform type checking on token and calls the get_next_token function if types are matching
+        This method check the actual token type with the expected token type according to the grammar.
+        If they match the token will be consumed and the current token instance will be updated by get_next_token() method.
         """
         if self.current_token.type == token_type:
             self.current_token = self.get_next_token()
@@ -69,26 +93,34 @@ class Pyscal():
 
         For now an expression is:
             expr -> INTEGER PLUS INTEGER
+            expr -> INTEGER MINUS INTEGER
         """
         # current token becomes the first token from source
         self.current_token = self.get_next_token()
 
         # we expect the first operand to be an integer
         left = self.current_token
-        self.advance(INTEGER)
+        self.consume_token(INTEGER)
 
         # we expect the operator to be a '+'
         op = self.current_token
-        self.advance(PLUS)
+
+        if op.type == PLUS:
+            self.consume_token(PLUS)
+        else:
+            self.consume_token(MINUS)
 
         # we expect the second second to be an integer
         right = self.current_token
-        self.advance(INTEGER)
+        self.consume_token(INTEGER)
 
         # EOF is the final token
 
         # If the code reaches this point its because all tokens has valid types
-        return left.value + right.value
+        if op.type == PLUS:
+            return left.value + right.value
+        else:
+            return left.value - right.value
 
 def run() -> None:
     while True:
