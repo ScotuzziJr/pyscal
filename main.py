@@ -1,7 +1,7 @@
 # Token Types
 from typing_extensions import Optional, Union
 
-INTEGER, PLUS, MINUS, EOF = 'INTEGER', 'PLUS', 'MINUS', 'EOF'
+INTEGER, PLUS, MINUS, DIV, MULT, EOF = 'INTEGER', 'PLUS', 'MINUS', 'DIV', 'MULT', 'EOF'
 
 class Token():
     def __init__(self, type: str, value: Optional[Union[int, str]]) -> None:
@@ -16,11 +16,10 @@ class Token():
     def __repr__(self) -> str:
         return self.__str__()
 
-class Pyscal():
+class Lexer():
     def __init__(self, source: str) -> None:
         self.source = source # e.g: '3+5'
         self.pos = 0 # index of source
-        self.current_token = None # current token instance
         self.current_char = self.source[self.pos]
 
     # auxiliary function
@@ -72,10 +71,21 @@ class Pyscal():
             elif self.current_char == '-':
                 self.advance()
                 return Token(MINUS, '-')
+            elif self.current_char == '/':
+                self.advance()
+                return Token(DIV, '/')
+            elif self.current_char == '*':
+                self.advance()
+                return Token(MULT, '*')
 
             self.error()
 
         return Token(EOF, None)
+
+class Pyscal():
+    def __init__(self, lexer: Lexer) -> None:
+        self.lexer = lexer
+        self.current_token = self.lexer.get_next_token() # current token instance
 
     def consume_token(self, token_type) -> None:
         """
@@ -83,44 +93,60 @@ class Pyscal():
         If they match the token will be consumed and the current token instance will be updated by get_next_token() method.
         """
         if self.current_token.type == token_type:
-            self.current_token = self.get_next_token()
+            self.current_token = self.lexer.get_next_token()
         else:
-            self.error()
+            self.lexer.error()
 
-    def expr(self) -> Optional[int]:
+    def factor(self) -> None:
         """
-        This method evaluate expressions
-
-        For now an expression is:
-            expr -> INTEGER PLUS INTEGER
-            expr -> INTEGER MINUS INTEGER
+        factor : INTEGER
         """
-        # current token becomes the first token from source
-        self.current_token = self.get_next_token()
-
-        # we expect the first operand to be an integer
-        left = self.current_token
+        token = self.current_token
         self.consume_token(INTEGER)
+        return token.value
 
-        # we expect the operator to be a '+'
-        op = self.current_token
+    def term(self) -> None:
+        """
+        term: factor ((MULT | DIV) factor)*
+        """
+        result = self.factor()
 
-        if op.type == PLUS:
-            self.consume_token(PLUS)
-        else:
-            self.consume_token(MINUS)
+        while self.current_token.type in (MULT, DIV):
+            token = self.current_token
 
-        # we expect the second second to be an integer
-        right = self.current_token
-        self.consume_token(INTEGER)
+            if token.type == MULT:
+                self.consume_token(MULT)
+                result *= self.factor()
+            elif token.type == DIV:
+                self.consume_token(DIV)
+                result /= self.factor()
 
-        # EOF is the final token
+        return result
 
-        # If the code reaches this point its because all tokens has valid types
-        if op.type == PLUS:
-            return left.value + right.value
-        else:
-            return left.value - right.value
+    def expr(self) -> Optional[Union[int, float]]:
+        """
+        Parser / Interpreter
+
+        pyscal>  14 + 2 * 3 - 6 / 2
+                17
+
+        expr   : term ((PLUS | MINUS) term)*
+        term   : factor ((MULT | DIV) factor)*
+        factor : INTEGER
+        """
+        result = self.term()
+
+        while self.current_token.type in (PLUS, MINUS):
+            token = self.current_token
+
+            if token.type == PLUS:
+                self.consume_token(PLUS)
+                result += self.term()
+            elif token.type == MINUS:
+                self.consume_token(MINUS)
+                result -= self.term()
+
+        return result
 
 def run() -> None:
     while True:
@@ -131,7 +157,8 @@ def run() -> None:
         if not source:
            continue
 
-        pyscal = Pyscal(source)
+        lexer = Lexer(source)
+        pyscal = Pyscal(lexer)
         result = pyscal.expr()
         print(result)
 
