@@ -1,4 +1,6 @@
 from interpreter import Interpreter
+from lexer import Lexer
+from parser import Parser
 
 while True:
     try:
@@ -11,6 +13,8 @@ while True:
     elif source == 'q':
         break
 
-    interpreter = Interpreter(source)
+    lexer = Lexer(source)
+    parser = Parser(lexer)
+    interpreter = Interpreter(parser)
     result = interpreter.run()
     print(result)
