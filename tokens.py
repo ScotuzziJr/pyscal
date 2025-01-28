@@ -7,7 +7,9 @@ TOKENS = Enum("TOKENS", [
     "PLUS",
     "MINUS",
     "MUL",
-    "DIV"
+    "DIV",
+    "L_PAREN",
+    "R_PAREN"
 ])
 
 class Token:

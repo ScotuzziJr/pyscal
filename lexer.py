@@ -63,6 +63,12 @@ class Lexer():
             elif self.current_char == '*':
                 self.advance()
                 return Token(TOKENS.MUL.name, '*')
+            elif self.current_char == '(':
+                self.advance()
+                return Token(TOKENS.L_PAREN.name, '(')
+            elif self.current_char == ')':
+                self.advance()
+                return Token(TOKENS.R_PAREN.name, ')')
 
             self.error()
 

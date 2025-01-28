@@ -20,13 +20,20 @@ class Parser:
         else:
             self.error()
 
-    def factor(self) -> None:
+    def factor(self) -> Optional[int]:
         """
-        factor : INTEGER
+        factor : INTEGER | LPAREN expr RPAREN
         """
         token = self.current_token
-        self.consume_token(TOKENS.INTEGER.name)
-        return token.lexeme
+
+        if token.type == TOKENS.INTEGER.name:
+            self.consume_token(TOKENS.INTEGER.name)
+            return token.lexeme
+        elif token.type == TOKENS.L_PAREN.name:
+            self.consume_token(TOKENS.L_PAREN.name)
+            result = self.expr()
+            self.consume_token(TOKENS.R_PAREN.name)
+            return result
 
     def term(self) -> None:
         """
@@ -54,8 +61,8 @@ class Parser:
                 17
 
         expr   : term ((PLUS | MINUS) term)*
-        term   : factor ((MULT | DIV) factor)*
-        factor : INTEGER
+        term   : factor ((MUL | DIV) factor)*
+        factor : INTEGER | LPAREN expr RPAREN
         """
         result = self.term()
 
